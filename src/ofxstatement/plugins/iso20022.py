@@ -60,7 +60,7 @@ class Iso20022Parser(object):
         if bnk is None:
             bnk = stmt.find('./s:Acct/s:Svcr/s:FinInstnId/s:Nm', self.xmlns)
         iban = stmt.find('./s:Acct/s:Id/s:IBAN', self.xmlns)
-        other = stmt.find('./s:Acct/s:Id/s:Other', self.xmlns)
+        other = stmt.find('./s:Acct/s:Id/s:Othr/s:Id', self.xmlns)
         ccy = stmt.find('./s:Acct/s:Ccy', self.xmlns)
         bals = stmt.findall('./s:Bal', self.xmlns)
 
