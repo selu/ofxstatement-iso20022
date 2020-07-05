@@ -60,6 +60,7 @@ class Iso20022Parser(object):
         if bnk is None:
             bnk = stmt.find('./s:Acct/s:Svcr/s:FinInstnId/s:Nm', self.xmlns)
         iban = stmt.find('./s:Acct/s:Id/s:IBAN', self.xmlns)
+        other = stmt.find('./s:Acct/s:Id/s:Other', self.xmlns)
         ccy = stmt.find('./s:Acct/s:Ccy', self.xmlns)
         bals = stmt.findall('./s:Bal', self.xmlns)
 
@@ -92,7 +93,7 @@ class Iso20022Parser(object):
                 "currency of statement file." % self.statement.currency)
 
         self.statement.bank_id = bnk.text if bnk is not None else None
-        self.statement.account_id = iban.text
+        self.statement.account_id = iban.text if iban is not None else other.text
         self.statement.start_balance = bal_amts['OPBD']
         self.statement.start_date = bal_dates['OPBD']
         self.statement.end_balance = bal_amts['CLBD']
