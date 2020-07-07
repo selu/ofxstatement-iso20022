@@ -30,8 +30,7 @@ class Iso20022Parser(object):
     def parse(self):
         """Main entry point for parsers
         """
-        self.statement = Statement()
-        self.statement.currency = self.currency
+        self.statements = []
         tree = ET.parse(self.filename)
 
         # Find out XML namespace and make sure we can parse it
@@ -44,17 +43,18 @@ class Iso20022Parser(object):
         }
 
 
-        self._parse_statement_properties(tree)
-        self._parse_lines(tree)
+        for stmt in tree.find('./s:BkToCstmrStmt/s:Stmt', self.xmlns):
+            self.statements.append(self._parse_statement(stmt))
 
-        return self.statement
+        return self.statements
 
     def _get_namespace(self, elem):
         m = re.match(r'\{(.*)\}', elem.tag)
         return m.groups()[0] if m else ''
 
-    def _parse_statement_properties(self, tree):
-        stmt = tree.find('./s:BkToCstmrStmt/s:Stmt', self.xmlns)
+    def _parse_statement(self, stmt):
+        statement = Statement()
+        statement.currency = self.currency
 
         bnk = stmt.find('./s:Acct/s:Svcr/s:FinInstnId/s:BIC', self.xmlns)
         if bnk is None:
@@ -66,9 +66,9 @@ class Iso20022Parser(object):
 
         acctCurrency = ccy.text if ccy is not None else None
         if acctCurrency:
-            self.statement.currency = acctCurrency
+            statement.currency = acctCurrency
         else:
-            if self.statement.currency is None:
+            if statement.currency is None:
                 raise exceptions.ParseError(
                     0, "No account currency provided in statement. Please "
                     "specify one in configuration file (e.g. currency=EUR)")
@@ -81,7 +81,7 @@ class Iso20022Parser(object):
             dt = bal.find('./s:Dt', self.xmlns)
             amt_ccy = amt.get('Ccy')
             # Amount currency should match with statement currency
-            if amt_ccy != self.statement.currency:
+            if amt_ccy != statement.currency:
                 continue
 
             bal_amts[cd.text] = self._parse_amount(amt)
@@ -90,22 +90,26 @@ class Iso20022Parser(object):
         if not bal_amts:
             raise exceptions.ParseError(
                 0, "No statement balance found for currency '%s'. Check "
-                "currency of statement file." % self.statement.currency)
+                "currency of statement file." % statement.currency)
 
-        self.statement.bank_id = bnk.text if bnk is not None else None
-        self.statement.account_id = iban.text if iban is not None else other.text
-        self.statement.start_balance = bal_amts['OPBD']
-        self.statement.start_date = bal_dates['OPBD']
-        self.statement.end_balance = bal_amts['CLBD']
-        self.statement.end_date = bal_dates['CLBD']
+        statement.bank_id = bnk.text if bnk is not None else None
+        statement.account_id = iban.text if iban is not None else other.text
+        statement.start_balance = bal_amts['OPBD']
+        statement.start_date = bal_dates['OPBD']
+        statement.end_balance = bal_amts['CLBD']
+        statement.end_date = bal_dates['CLBD']
 
-    def _parse_lines(self, tree):
-        for ntry in self._findall(tree, 'BkToCstmrStmt/Stmt/Ntry'):
-            sline = self._parse_line(ntry)
+        self._parse_lines(stmt, statement)
+
+        return statement
+
+    def _parse_lines(self, stmt, statement):
+        for ntry in self._findall(stmt, './Ntry'):
+            sline = self._parse_line(ntry, statement)
             if sline is not None:
-                self.statement.lines.append(sline)
+                statement.lines.append(sline)
 
-    def _parse_line(self, ntry):
+    def _parse_line(self, ntry, statement):
         sline = StatementLine()
 
         crdeb = self._find(ntry, 'CdtDbtInd').text
@@ -113,7 +117,7 @@ class Iso20022Parser(object):
         amtnode = self._find(ntry, 'Amt')
         amt_ccy = amtnode.get('Ccy')
 
-        if amt_ccy != self.statement.currency:
+        if amt_ccy != statement.currency:
             # We can't include amounts with incompatible currencies into the
             # statement.
             return None
