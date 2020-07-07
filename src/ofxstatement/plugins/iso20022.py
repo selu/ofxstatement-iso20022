@@ -43,7 +43,7 @@ class Iso20022Parser(object):
         }
 
 
-        for stmt in tree.find('./s:BkToCstmrStmt/s:Stmt', self.xmlns):
+        for stmt in tree.findall('./s:BkToCstmrStmt/s:Stmt', self.xmlns):
             self.statements.append(self._parse_statement(stmt))
 
         return self.statements
