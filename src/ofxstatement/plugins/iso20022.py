@@ -104,7 +104,7 @@ class Iso20022Parser(object):
         return statement
 
     def _parse_lines(self, stmt, statement):
-        for ntry in self._findall(stmt, './Ntry'):
+        for ntry in self._findall(stmt, 'Ntry'):
             sline = self._parse_line(ntry, statement)
             if sline is not None:
                 statement.lines.append(sline)
